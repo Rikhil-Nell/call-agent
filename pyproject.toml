@@ -1,0 +1,14 @@
+[project]
+name = "call-agent"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "fastapi>=0.116.1",
+    "livekit>=1.0.11",
+    "livekit-agents[cartesia,deepgram,openai,silero,turn-detector]>=1.1.6",
+    "livekit-plugins-noise-cancellation>=0.2.5",
+    "python-dotenv>=1.1.1",
+    "uvicorn>=0.35.0",
+]
