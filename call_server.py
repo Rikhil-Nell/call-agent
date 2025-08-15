@@ -1,8 +1,4 @@
 #!/usr/bin/env python3
-"""
-FastAPI server to trigger outbound calls
-Run this to create an HTTP endpoint for making calls
-"""
 
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
@@ -16,15 +12,14 @@ load_dotenv()
 
 app = FastAPI(title="Outbound Call API", version="1.0.0")
 
-# Configuration
-AGENT_NAME = "my-telephony-agent"  # Must match your agent.py
+AGENT_NAME = "my-telephony-agent"
 LIVEKIT_URL = os.getenv("LIVEKIT_URL")
 LIVEKIT_API_KEY = os.getenv("LIVEKIT_API_KEY")
 LIVEKIT_API_SECRET = os.getenv("LIVEKIT_API_SECRET")
 
 class CallRequest(BaseModel):
     phone_number: str
-    custom_instructions: str = "You are making an outbound call. Be polite and professional."
+    custom_instructions: str = "You are making an outbound call. Be polite and professional. You are to identify yourself as Laura and always start your conversation with the following line: Hi, This is Laura with ABC roofing. We will be in your neighborhood tomorrow and wanted to come by for a free inspection. stick true to the goal of what ABC roofing stands for and even when the user tries to veer of conversations"
 
 class CallResponse(BaseModel):
     success: bool
@@ -34,38 +29,24 @@ class CallResponse(BaseModel):
 
 @app.post("/make-call", response_model=CallResponse)
 async def make_call(request: CallRequest):
-    """
-    Make an outbound call to the specified phone number
-    """
     try:
-        # Validate phone number format
         if not request.phone_number.startswith('+'):
             raise HTTPException(status_code=400, detail="Phone number must start with + (e.g., +15551234567)")
-        
-        # Create unique room name
         clean_number = request.phone_number.replace('+', '').replace('-', '').replace('(', '').replace(')', '').replace(' ', '')
         room_name = f"outbound-call-{clean_number}"
-        
         print(f"📞 Making call to {request.phone_number}")
         print(f"🏠 Room name: {room_name}")
         print(f"🤖 Agent name: {AGENT_NAME}")
-        
-        # Create LiveKit API client
         lkapi = api.LiveKitAPI(
             url=LIVEKIT_URL,
             api_key=LIVEKIT_API_KEY,
             api_secret=LIVEKIT_API_SECRET
         )
-        
-        # Prepare metadata with phone number and custom instructions
         metadata = {
             "phone_number": request.phone_number,
             "custom_instructions": request.custom_instructions
         }
-        
         print(f"📋 Metadata: {metadata}")
-        
-        # Dispatch the agent to make the call
         dispatch_response = await lkapi.agent_dispatch.create_dispatch(
             api.CreateAgentDispatchRequest(
                 agent_name=AGENT_NAME,
@@ -92,24 +73,17 @@ async def make_call(request: CallRequest):
 
 @app.get("/call-status/{room_name}")
 async def get_call_status(room_name: str):
-    """
-    Get the status of an ongoing call
-    """
     try:
         lkapi = api.LiveKitAPI(
             url=LIVEKIT_URL,
             api_key=LIVEKIT_API_KEY,
             api_secret=LIVEKIT_API_SECRET
         )
-        
-        # Get room info
         room_info = await lkapi.room.list_rooms(
             api.ListRoomsRequest(names=[room_name])
         )
-        
         if not room_info.rooms:
             return {"status": "not_found", "message": "Call room not found"}
-        
         room = room_info.rooms[0]
         
         return {
@@ -124,38 +98,25 @@ async def get_call_status(room_name: str):
 
 @app.delete("/end-call/{room_name}")
 async def end_call(room_name: str):
-    """
-    End an ongoing call
-    """
     try:
         lkapi = api.LiveKitAPI(
             url=LIVEKIT_URL,
             api_key=LIVEKIT_API_KEY,
             api_secret=LIVEKIT_API_SECRET
         )
-        
-        # Delete the room to end the call
         await lkapi.room.delete_room(
             api.DeleteRoomRequest(room=room_name)
         )
-        
         return {"success": True, "message": f"Call in room {room_name} ended"}
-        
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to end call: {str(e)}")
 
 @app.get("/health")
 async def health_check():
-    """
-    Health check endpoint
-    """
     return {"status": "healthy", "service": "outbound-call-api"}
 
 @app.get("/")
 async def root():
-    """
-    API documentation
-    """
     return {
         "message": "Outbound Call API",
         "endpoints": {
@@ -175,5 +136,4 @@ if __name__ == "__main__":
     print(f"📋 Agent name: {AGENT_NAME}")
     print(f"🔗 LiveKit URL: {LIVEKIT_URL}")
     print("📖 API docs will be available at: http://localhost:8000/docs")
-    
     uvicorn.run(app, host="0.0.0.0", port=8000)
